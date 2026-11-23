@@ -23,7 +23,7 @@ Designed as a feature-rich addon for servers using Nexo, NexoAddon enhances your
 
 🔧 **Block & Item Mechanics**
 * Aura / BlockAura – Area-based effects for entities or surrounding blocks.
-* BigMining – Mine multiple blocks with one action.
+* BigMining – Mine multiple blocks with one action. With `tierlimit` (default true) it only breaks blocks that need the same tool tier as the one you broke, or lower.
 * BedrockBreak – Add logic to break normally unbreakable blocks.
 * BottledExp – Bottle and retrieve experience.
 * Decay – Leaves-style decay for CustomBlocks.

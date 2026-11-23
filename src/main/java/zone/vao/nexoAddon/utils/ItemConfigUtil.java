@@ -206,6 +206,7 @@ public class ItemConfigUtil {
       int radius = section.getInt("Mechanics.bigmining.radius", 1);
       int depth = section.getInt("Mechanics.bigmining.depth", 1);
       boolean switchable = section.getBoolean("Mechanics.bigmining.switchable", false);
+      boolean tierLimit = section.getBoolean("Mechanics.bigmining.tierlimit", true);
       String soundRaw = section.getString("Mechanics.bigmining.sound", "block.stone.break");
       List<Material> materials = new ArrayList<>();
       for (String s : section.getStringList("Mechanics.bigmining.materials")) {
@@ -215,7 +216,7 @@ public class ItemConfigUtil {
 
       Sound sound = Registry.SOUNDS.get(soundRaw.contains(":") ? NamespacedKey.fromString(soundRaw) : NamespacedKey.minecraft(soundRaw));
 
-      mechanic.setBigMining(radius, depth, switchable, materials, sound);
+      mechanic.setBigMining(radius, depth, switchable, tierLimit, materials, sound);
     }
   }
 

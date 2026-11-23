@@ -55,8 +55,8 @@ public class Mechanics {
     this.repair = new Repair(ration, fixedAmount, materials, nexoIds, materialsBlacklist, nexoIdsBlacklist);
   }
 
-  public void setBigMining(int radius, int depth, boolean switchable, List<Material> materials, Sound sound) {
-    this.bigMining = new BigMining(radius, depth, switchable, materials, sound);
+  public void setBigMining(int radius, int depth, boolean switchable, boolean tierLimit, List<Material> materials, Sound sound) {
+    this.bigMining = new BigMining(radius, depth, switchable, tierLimit, materials, sound);
   }
 
   public void setVeinMiner(int distance, boolean toggleable, boolean sameMaterial, int limit, List<Material> materials, List<String> nexoIds) {

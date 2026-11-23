@@ -27,7 +27,7 @@ import java.util.UUID;
 
 import static zone.vao.nexoAddon.utils.BlockUtil.isInteractable;
 
-public record BigMining(int radius, int depth, boolean switchable, List<Material> materials, Sound sound) {
+public record BigMining(int radius, int depth, boolean switchable, boolean tierLimit, List<Material> materials, Sound sound) {
 
   public static boolean isBigMiningTool(String toolId) {
     return toolId != null && NexoAddon.getInstance().getMechanics().containsKey(toolId) && NexoAddon.getInstance().getMechanics().get(toolId).getBigMining() != null;
@@ -67,15 +67,26 @@ public record BigMining(int radius, int depth, boolean switchable, List<Material
       BlockFace breakFace = secondaryBlock.getFace(primaryBlock);
       int directionalModifier = calculateModifier(primaryBlock, secondaryBlock);
 
+      int maxTier = bigMiningMechanic.tierLimit() ? tierOf(event.getBlock()) : Integer.MAX_VALUE;
+
       UUID id = player.getUniqueId();
       EventUtil.runAfterBlockBreak(event, () -> {
         BreakCascade.hold(id);
         try {
-          breakBlocksInRadius(player, event.getBlock().getLocation(), breakFace, bigMiningMechanic, directionalModifier, tool);
+          breakBlocksInRadius(player, event.getBlock().getLocation(), breakFace, bigMiningMechanic, directionalModifier, tool, maxTier);
         } finally {
           BreakCascade.release(id);
         }
       });
+    }
+
+    private static int tierOf(Block block) {
+      Material type = block.getType();
+      if (Tag.NEEDS_DIAMOND_TOOL.isTagged(type)) return 4;
+      if (Tag.NEEDS_IRON_TOOL.isTagged(type)) return 3;
+      if (Tag.NEEDS_STONE_TOOL.isTagged(type)) return 2;
+      if (block.getBlockData().requiresCorrectToolForDrops()) return 1;
+      return 0;
     }
 
     private static int calculateModifier(Block primaryBlock, Block secondaryBlock) {
@@ -83,7 +94,7 @@ public record BigMining(int radius, int depth, boolean switchable, List<Material
       return delta.getBlockX() + delta.getBlockY() + delta.getBlockZ();
     }
 
-    private static void breakBlocksInRadius(Player player, Location origin, BlockFace face, BigMining mechanic, int modifier, ItemStack tool) {
+    private static void breakBlocksInRadius(Player player, Location origin, BlockFace face, BigMining mechanic, int modifier, ItemStack tool, int maxTier) {
       Location tempLocation;
       double radius = mechanic.radius();
       double depth = mechanic.depth();
@@ -99,7 +110,7 @@ public record BigMining(int radius, int depth, boolean switchable, List<Material
 
             if (tempLocation.equals(origin)) continue;
 
-            attemptBlockBreak(player, tempLocation.getBlock(), tool, mechanic);
+            attemptBlockBreak(player, tempLocation.getBlock(), tool, mechanic, maxTier);
           }
         }
       }
@@ -114,17 +125,18 @@ public record BigMining(int radius, int depth, boolean switchable, List<Material
       };
     }
 
-    private static void attemptBlockBreak(Player player, Block block, ItemStack tool, BigMining mechanic) {
+    private static void attemptBlockBreak(Player player, Block block, ItemStack tool, BigMining mechanic, int maxTier) {
       Location blockLocation = block.getLocation().clone();
 
       UUID id = player.getUniqueId();
       BreakCascade.hold(id);
       Bukkit.getRegionScheduler().run(NexoAddon.getInstance(), blockLocation, attempt ->
-          handleAttemptBlockBreak(player, block, tool, mechanic));
+          handleAttemptBlockBreak(player, block, tool, mechanic, maxTier));
     }
 
-    private static void handleAttemptBlockBreak(Player player, Block block, ItemStack tool, BigMining mechanic) {
+    private static void handleAttemptBlockBreak(Player player, Block block, ItemStack tool, BigMining mechanic, int maxTier) {
       try {
+        if (tierOf(block) > maxTier) return;
         if (isUnbreakableBlock(block.getType(), block.isLiquid(), NexoAddon.getInstance().getBoundaryGuard().canBreak(player, block.getLocation()))) return;
         BlockBreakEvent blockBreakEvent = new BlockBreakEvent(block, player);
 

@@ -1,6 +1,10 @@
 package zone.vao.nexoAddon.items.mechanics;
 
+import com.nexomc.nexo.api.NexoBlocks;
 import com.nexomc.nexo.api.NexoItems;
+import com.nexomc.nexo.mechanics.breakable.Breakable;
+import com.nexomc.nexo.mechanics.custom_block.CustomBlockMechanic;
+import com.nexomc.nexo.utils.drops.Drop;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.*;
@@ -80,13 +84,30 @@ public record BigMining(int radius, int depth, boolean switchable, boolean tierL
       });
     }
 
+    private static final List<String> TOOL_TIERS = List.of("WOODEN", "STONE", "IRON", "GOLDEN", "DIAMOND", "NETHERITE");
+
     private static int tierOf(Block block) {
+      CustomBlockMechanic custom = NexoBlocks.customBlockMechanic(block);
+      if (custom != null) return nexoTierOf(custom);
+
       Material type = block.getType();
-      if (Tag.NEEDS_DIAMOND_TOOL.isTagged(type)) return 4;
-      if (Tag.NEEDS_IRON_TOOL.isTagged(type)) return 3;
-      if (Tag.NEEDS_STONE_TOOL.isTagged(type)) return 2;
-      if (block.getBlockData().requiresCorrectToolForDrops()) return 1;
+      if (Tag.NEEDS_DIAMOND_TOOL.isTagged(type)) return TOOL_TIERS.indexOf("DIAMOND") + 1;
+      if (Tag.NEEDS_IRON_TOOL.isTagged(type)) return TOOL_TIERS.indexOf("IRON") + 1;
+      if (Tag.NEEDS_STONE_TOOL.isTagged(type)) return TOOL_TIERS.indexOf("STONE") + 1;
+      if (block.getBlockData().requiresCorrectToolForDrops()) return TOOL_TIERS.indexOf("WOODEN") + 1;
       return 0;
+    }
+
+    private static int nexoTierOf(CustomBlockMechanic custom) {
+      Breakable breakable = custom.getBreakable();
+      if (breakable == null) return 0;
+      Drop drop = breakable.getDrop();
+      if (drop == null) return 0;
+      String minimal = drop.getMinimalType();
+      if (minimal == null || minimal.isEmpty()) return 0;
+      int known = TOOL_TIERS.indexOf(minimal);
+      if (known >= 0) return known + 1;
+      return drop.getHierarchy().indexOf(minimal) + 1;
     }
 
     private static int calculateModifier(Block primaryBlock, Block secondaryBlock) {

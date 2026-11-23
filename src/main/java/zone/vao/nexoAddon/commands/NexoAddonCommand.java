@@ -18,8 +18,10 @@ import zone.vao.nexoAddon.items.mechanics.CustomCrafting;
 import zone.vao.nexoAddon.utils.LiquidUtil;
 import zone.vao.nexoAddon.utils.TotemUtil;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @CommandAlias("nexoaddon")
 public class NexoAddonCommand extends BaseCommand {
@@ -121,15 +123,33 @@ public class NexoAddonCommand extends BaseCommand {
 
   @Subcommand("repopulate")
   @CommandPermission("nexoaddon.admin")
-  @Syntax("[worldName|#all] <knowTheExperimentalFeature>")
-  @CommandCompletion("@worlds")
-  public void onRepopulate(CommandSender sender, @Optional String worldName, @Optional Boolean knowTheExperimentalFeature) {
+  @Syntax("[worldName|#all] <knowTheExperimentalFeature> [id1,id2,...]")
+  @CommandCompletion("@worlds true @nothing")
+  public void onRepopulate(CommandSender sender, @Optional String worldName, @Optional Boolean knowTheExperimentalFeature, @Optional String ids) {
 
     if(knowTheExperimentalFeature == null || !knowTheExperimentalFeature){
       sender.sendMessage(MiniMessage.miniMessage()
           .deserialize("<red>Repopulating is a experimental feature! We suggest you to make a backup at 1st. Be aware and if you will find any issues, report it on discord server. If you have read this message, type 'true' at the end of the command.</red>"));
       return;
     }
+
+    Set<String> onlyIds = null;
+    if (ids != null && !ids.isBlank()) {
+      onlyIds = new LinkedHashSet<>();
+      for (String id : ids.split(",")) {
+        if (!id.isBlank()) onlyIds.add(id.trim());
+      }
+
+      Set<String> known = NexoAddon.getInstance().getPopulatorManager().knownIds();
+      List<String> unknown = onlyIds.stream().filter(id -> !known.contains(id)).toList();
+      if (!unknown.isEmpty()) {
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<red>Unknown populator id(s): <white>" + String.join(", ", unknown)
+                + "</white>. Use the keys from your populator config.</red>"));
+        return;
+      }
+    }
+    final Set<String> filterIds = onlyIds;
 
     List<World> targetWorlds;
     if (worldName == null || worldName.equalsIgnoreCase("#all")) {
@@ -145,7 +165,8 @@ public class NexoAddonCommand extends BaseCommand {
     }
 
     sender.sendMessage(MiniMessage.miniMessage()
-        .deserialize("<yellow>Scheduling repopulation for loaded chunks...</yellow>"));
+        .deserialize("<yellow>Scheduling repopulation for loaded chunks"
+            + (filterIds == null ? "" : " (only: <white>" + String.join(", ", filterIds) + "</white>)") + "...</yellow>"));
 
     Bukkit.getGlobalRegionScheduler().run(NexoAddon.getInstance(), populate -> {
       int processedChunks = 0;
@@ -163,7 +184,7 @@ public class NexoAddonCommand extends BaseCommand {
         for (Chunk chunk : world.getLoadedChunks()) {
           if (!chunk.isGenerated()) continue;
 
-          NexoAddon.getInstance().getPopulatorManager().repopulate(world, chunk);
+          NexoAddon.getInstance().getPopulatorManager().repopulate(world, chunk, filterIds);
 
           processedChunks++;
         }

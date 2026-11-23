@@ -9,8 +9,10 @@ import org.bukkit.generator.WorldInfo;
 import org.bukkit.plugin.Plugin;
 import zone.vao.nexoAddon.utils.PopulatorsConfigUtil;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 public class PopulatorManager {
 
@@ -98,7 +100,20 @@ public class PopulatorManager {
     });
   }
 
+  public Set<String> knownIds() {
+    Settings current = settings;
+    Set<String> ids = new LinkedHashSet<>();
+    current.blocks().forEach(rule -> ids.add(rule.item().id()));
+    current.biomes().forEach(biome -> ids.add(biome.getId()));
+    return ids;
+  }
+
   public void repopulate(World world, Chunk chunk) {
+    repopulate(world, chunk, null);
+  }
+
+  public void repopulate(World world, Chunk chunk, Set<String> onlyIds) {
+    boolean filtered = onlyIds != null && !onlyIds.isEmpty();
     int chunkX = chunk.getX();
     int chunkZ = chunk.getZ();
     Settings current = settings;
@@ -107,8 +122,14 @@ public class PopulatorManager {
       Random random = random(world, chunkX, chunkZ);
       PopulationRegion view = new WorldPopulationRegion(world, chunkX, chunkZ);
       boolean changed = false;
-      for (BiomePopulator biome : current.biomes()) changed |= biome.populate(world, random, chunkX, chunkZ, view);
-      for (PopulatorDefinition rule : current.blocks()) engine.populate(world, random, chunkX, chunkZ, view, rule);
+      for (BiomePopulator biome : current.biomes()) {
+        if (filtered && !onlyIds.contains(biome.getId())) continue;
+        changed |= biome.populate(world, random, chunkX, chunkZ, view);
+      }
+      for (PopulatorDefinition rule : current.blocks()) {
+        if (filtered && !onlyIds.contains(rule.item().id())) continue;
+        engine.populate(world, random, chunkX, chunkZ, view, rule);
+      }
       if (changed) world.refreshChunk(chunkX, chunkZ);
     });
   }

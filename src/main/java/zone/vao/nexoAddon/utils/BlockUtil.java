@@ -312,7 +312,7 @@ public class BlockUtil {
                     decay.nexoBase().contains(NexoBlocks.customBlockMechanic(block.getLocation()).getItemID()));
   }
 
-  public static void startBlockAura(Particle particle, Location location, String xOffsetRange, String yOffsetRange, String zOffsetRange, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force) {
+  public static void startBlockAura(Particle particle, Location location, String xOffsetRange, String yOffsetRange, String zOffsetRange, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force, Object data) {
     ScheduledTask task = Bukkit.getRegionScheduler().runAtFixedRate(NexoAddon.getInstance(), location, aura -> {
       World world = location.getWorld();
       if (!NexoBlocks.isCustomBlock(location.getBlock()) && !NexoFurniture.isFurniture(location)) {
@@ -331,7 +331,7 @@ public class BlockUtil {
             amount,
             deltaX, deltaY, deltaZ,
             speed,
-            null,
+            data,
             force
         );
       }
@@ -376,7 +376,8 @@ public class BlockUtil {
       double deltaZ = mechanics.getBlockAura().deltaZ();
       double speed = mechanics.getBlockAura().speed();
       boolean force = mechanics.getBlockAura().force();
-      BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force);
+      Object data = mechanics.getBlockAura().data();
+      BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force, data);
     }
 
     for (Entity entity : chunk.getEntities()) {
@@ -404,7 +405,8 @@ public class BlockUtil {
       double deltaZ = mechanics.getBlockAura().deltaZ();
       double speed = mechanics.getBlockAura().speed();
       boolean force = mechanics.getBlockAura().force();
-      BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force);
+      Object data = mechanics.getBlockAura().data();
+      BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force, data);
     }
   }
 

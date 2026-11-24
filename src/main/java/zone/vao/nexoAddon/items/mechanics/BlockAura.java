@@ -21,7 +21,7 @@ import zone.vao.nexoAddon.NexoAddon;
 import zone.vao.nexoAddon.items.Mechanics;
 import zone.vao.nexoAddon.utils.BlockUtil;
 
-public record BlockAura(Particle particle, String xOffset, String yOffset, String zOffset, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force) {
+public record BlockAura(Particle particle, String xOffset, String yOffset, String zOffset, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force, Object data) {
 
   public static class BlockAuraListener implements Listener {
 
@@ -77,10 +77,11 @@ public record BlockAura(Particle particle, String xOffset, String yOffset, Strin
       double deltaZ = mechanics.getBlockAura().deltaZ();
       double speed = mechanics.getBlockAura().speed();
       boolean force = mechanics.getBlockAura().force();
+      Object data = mechanics.getBlockAura().data();
 
       FurnitureMechanic furnitureMechanic = event.getMechanic();
       if (furnitureMechanic != null) {
-        BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force);
+        BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force, data);
         PersistentDataContainer pdc = event.getBaseEntity().getPersistentDataContainer();
         pdc.set(new NamespacedKey(NexoAddon.getInstance(), "blockAura"), PersistentDataType.STRING, furnitureMechanic.getItemID());
       }
@@ -102,11 +103,12 @@ public record BlockAura(Particle particle, String xOffset, String yOffset, Strin
       double deltaZ = mechanics.getBlockAura().deltaZ();
       double speed = mechanics.getBlockAura().speed();
       boolean force = mechanics.getBlockAura().force();
+      Object data = mechanics.getBlockAura().data();
 
       CustomBlockMechanic customBlockMechanic = NexoBlocks.customBlockMechanic(location);
 
       if (!event.isCancelled() && customBlockMechanic != null) {
-        BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force);
+        BlockUtil.startBlockAura(particle, location, xOffsetRange, yOffsetRange, zOffsetRange, amount, deltaX, deltaY, deltaZ, speed, force, data);
         CustomBlockData customBlockData = new CustomBlockData(location.getBlock(), NexoAddon.getInstance());
         customBlockData.set(new NamespacedKey(NexoAddon.getInstance(), "blockAura"), PersistentDataType.STRING, customBlockMechanic.getItemID());
       }

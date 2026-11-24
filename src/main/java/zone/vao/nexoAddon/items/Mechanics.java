@@ -105,8 +105,8 @@ public class Mechanics {
 
   public void setUnstackable(String next, String give, List<Material> materials, List<String> nexoIds, String take) {this.unstackable = new Unstackable(next, give, materials, nexoIds, take);}
 
-  public void setBlockAura(Particle particle, String xOffset, String yOffset, String zOffset, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force) {
-    this.blockAura = new BlockAura(particle, xOffset, yOffset, zOffset, amount, deltaX, deltaY, deltaZ, speed, force);
+  public void setBlockAura(Particle particle, String xOffset, String yOffset, String zOffset, int amount, double deltaX, double deltaY, double deltaZ, double speed, boolean force, Object data) {
+    this.blockAura = new BlockAura(particle, xOffset, yOffset, zOffset, amount, deltaX, deltaY, deltaZ, speed, force, data);
   }
 
   public void setSignal(int radius, double channel, String role) {

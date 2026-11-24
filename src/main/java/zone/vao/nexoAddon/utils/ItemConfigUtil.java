@@ -472,8 +472,39 @@ public class ItemConfigUtil {
       double deltaZ = section.getDouble("Mechanics.block_aura.deltaZ", 0.6);
       double speed = section.getDouble("Mechanics.block_aura.speed", 0.05);
       boolean force = section.getBoolean("Mechanics.block_aura.force", true);
-      mechanic.setBlockAura(particle, xOffset, yOffset, zOffset, amount, deltaX, deltaY, deltaZ, speed, force);
+      Object data = null;
+      if (particle.getDataType() == Particle.DustOptions.class) {
+        Color color = parseAuraColor(section.getString("Mechanics.block_aura.color"), Color.RED);
+        float size = (float) section.getDouble("Mechanics.block_aura.size", 1.0);
+        data = new Particle.DustOptions(color, size);
+      } else if (particle.getDataType() == Particle.DustTransition.class) {
+        Color color = parseAuraColor(section.getString("Mechanics.block_aura.color"), Color.RED);
+        Color toColor = parseAuraColor(section.getString("Mechanics.block_aura.to_color"), color);
+        float size = (float) section.getDouble("Mechanics.block_aura.size", 1.0);
+        data = new Particle.DustTransition(color, toColor, size);
+      }
+      mechanic.setBlockAura(particle, xOffset, yOffset, zOffset, amount, deltaX, deltaY, deltaZ, speed, force, data);
     }
+  }
+
+  private static Color parseAuraColor(String raw, Color fallback) {
+    if (raw == null || raw.isBlank()) return fallback;
+    String value = raw.trim();
+    try {
+      if (value.startsWith("#")) {
+        return Color.fromRGB(Integer.parseInt(value.substring(1), 16) & 0xFFFFFF);
+      }
+      String[] parts = value.split(",");
+      if (parts.length == 3) {
+        return Color.fromRGB(
+            Math.max(0, Math.min(255, Integer.parseInt(parts[0].trim()))),
+            Math.max(0, Math.min(255, Integer.parseInt(parts[1].trim()))),
+            Math.max(0, Math.min(255, Integer.parseInt(parts[2].trim())))
+        );
+      }
+    } catch (NumberFormatException ignored) {
+    }
+    return fallback;
   }
 
   private static void loadSignalMechanic(ConfigurationSection section, Mechanics mechanic) {

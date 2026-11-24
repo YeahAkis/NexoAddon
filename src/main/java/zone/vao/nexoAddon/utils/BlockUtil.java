@@ -33,6 +33,7 @@ public class BlockUtil {
   public static final Set<Material> UNBREAKABLE_BLOCKS = Sets.newHashSet(Material.BEDROCK, Material.BARRIER, Material.NETHER_PORTAL, Material.END_PORTAL_FRAME, Material.END_PORTAL, Material.END_GATEWAY);
   public static final Set<Location> processedCustomBlocks = ConcurrentHashMap.newKeySet();
   private static final Map<UUID, Map<Long, Set<BlockVector>>> pendingPopulatedAuras = new ConcurrentHashMap<>();
+  private static final Set<Material> AURA_SCAN_TYPES = Set.of(Material.NOTE_BLOCK, Material.TRIPWIRE, Material.CHORUS_PLANT);
   private static final ShiftBlockTracker shiftBlocks = new ShiftBlockTracker();
   public static final Set<Location> processedShiftblocks = shiftBlocks.locations();
 
@@ -416,8 +417,53 @@ public class BlockUtil {
     pdc.set(new NamespacedKey(NexoAddon.getInstance(), "blockAura"), PersistentDataType.STRING, itemId);
   }
 
+  private static void scanExistingAuras(Chunk chunk) {
+    Set<String> ids = new TreeSet<>();
+    for (Map.Entry<String, Mechanics> entry : NexoAddon.getInstance().getMechanics().entrySet()) {
+      if (entry.getValue().getBlockAura() != null) ids.add(entry.getKey());
+    }
+    if (ids.isEmpty()) return;
+
+    NamespacedKey scanKey = new NamespacedKey(NexoAddon.getInstance(), "blockAuraScan");
+    PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
+    int signature = ids.hashCode();
+    Integer previous = chunkData.get(scanKey, PersistentDataType.INTEGER);
+    if (previous != null && previous == signature) return;
+    chunkData.set(scanKey, PersistentDataType.INTEGER, signature);
+
+    NamespacedKey auraKey = new NamespacedKey(NexoAddon.getInstance(), "blockAura");
+    World world = chunk.getWorld();
+    ChunkSnapshot snapshot = chunk.getChunkSnapshot(false, false, false);
+    int minY = world.getMinHeight();
+    int sections = (world.getMaxHeight() - minY) >> 4;
+    for (int section = 0; section < sections; section++) {
+      if (snapshot.isSectionEmpty(section)) continue;
+      int baseY = minY + (section << 4);
+      for (int y = baseY; y < baseY + 16; y++) {
+        for (int x = 0; x < 16; x++) {
+          for (int z = 0; z < 16; z++) {
+            if (!AURA_SCAN_TYPES.contains(snapshot.getBlockType(x, y, z))) continue;
+            Block block = chunk.getBlock(x, y, z);
+            if (!NexoBlocks.isCustomBlock(block)) continue;
+            CustomBlockMechanic mechanic = NexoBlocks.customBlockMechanic(block.getLocation());
+            if (mechanic == null || !ids.contains(mechanic.getItemID())) continue;
+            new CustomBlockData(block, NexoAddon.getInstance()).set(auraKey, PersistentDataType.STRING, mechanic.getItemID());
+          }
+        }
+      }
+    }
+
+    for (Entity entity : chunk.getEntities()) {
+      if (!NexoFurniture.isFurniture(entity)) continue;
+      FurnitureMechanic mechanic = NexoFurniture.furnitureMechanic(entity);
+      if (mechanic == null || !ids.contains(mechanic.getItemID())) continue;
+      entity.getPersistentDataContainer().set(auraKey, PersistentDataType.STRING, mechanic.getItemID());
+    }
+  }
+
   public static void restartBlockAura(Chunk chunk){
     markPopulatedAuras(chunk);
+    scanExistingAuras(chunk);
 
     for(Block block : CustomBlockData.getBlocksWithCustomData(NexoAddon.getInstance(), chunk)){
       CustomBlockData customBlockData = new CustomBlockData(block, (NexoAddon.getInstance()));

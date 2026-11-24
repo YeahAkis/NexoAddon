@@ -17,8 +17,10 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.BlockVector;
 import zone.vao.nexoAddon.NexoAddon;
 import zone.vao.nexoAddon.items.Mechanics;
+import zone.vao.nexoAddon.items.mechanics.BlockAura;
 import zone.vao.nexoAddon.items.mechanics.Decay;
 import zone.vao.nexoAddon.items.mechanics.Spread;
 
@@ -30,6 +32,7 @@ public class BlockUtil {
 
   public static final Set<Material> UNBREAKABLE_BLOCKS = Sets.newHashSet(Material.BEDROCK, Material.BARRIER, Material.NETHER_PORTAL, Material.END_PORTAL_FRAME, Material.END_PORTAL, Material.END_GATEWAY);
   public static final Set<Location> processedCustomBlocks = ConcurrentHashMap.newKeySet();
+  private static final Map<UUID, Map<Long, Set<BlockVector>>> pendingPopulatedAuras = new ConcurrentHashMap<>();
   private static final ShiftBlockTracker shiftBlocks = new ShiftBlockTracker();
   public static final Set<Location> processedShiftblocks = shiftBlocks.locations();
 
@@ -351,7 +354,71 @@ public class BlockUtil {
     }
   }
 
+  public static boolean hasBlockAura(String itemId) {
+    Mechanics mechanics = NexoAddon.getInstance().getMechanics().get(itemId);
+    return mechanics != null && mechanics.getBlockAura() != null;
+  }
+
+  private static long chunkKey(int chunkX, int chunkZ) {
+    return (long) chunkX << 32 | (chunkZ & 0xFFFFFFFFL);
+  }
+
+  public static void queuePopulatedAuras(UUID worldId, String itemId, Collection<BlockVector> positions) {
+    if (positions.isEmpty() || !hasBlockAura(itemId)) return;
+    Map<Long, Set<BlockVector>> chunks = pendingPopulatedAuras.computeIfAbsent(worldId, key -> new ConcurrentHashMap<>());
+    for (BlockVector position : positions) {
+      long key = chunkKey(position.getBlockX() >> 4, position.getBlockZ() >> 4);
+      chunks.computeIfAbsent(key, ignored -> ConcurrentHashMap.newKeySet()).add(position);
+    }
+  }
+
+  private static void markPopulatedAuras(Chunk chunk) {
+    World world = chunk.getWorld();
+    Map<Long, Set<BlockVector>> chunks = pendingPopulatedAuras.get(world.getUID());
+    if (chunks == null) return;
+    Set<BlockVector> positions = chunks.remove(chunkKey(chunk.getX(), chunk.getZ()));
+    if (positions == null) return;
+
+    NamespacedKey key = new NamespacedKey(NexoAddon.getInstance(), "blockAura");
+    for (BlockVector position : positions) {
+      Block block = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
+      if (!NexoBlocks.isCustomBlock(block)) continue;
+      CustomBlockMechanic mechanic = NexoBlocks.customBlockMechanic(block.getLocation());
+      if (mechanic == null || !hasBlockAura(mechanic.getItemID())) continue;
+      new CustomBlockData(block, NexoAddon.getInstance()).set(key, PersistentDataType.STRING, mechanic.getItemID());
+    }
+  }
+
+  public static void startPopulatedAura(Location location, Entity furniture) {
+    String itemId;
+    Location auraLocation;
+    PersistentDataContainer pdc;
+    if (furniture != null) {
+      FurnitureMechanic mechanic = NexoFurniture.furnitureMechanic(furniture);
+      if (mechanic == null) return;
+      itemId = mechanic.getItemID();
+      auraLocation = furniture.getLocation();
+      pdc = furniture.getPersistentDataContainer();
+    } else {
+      CustomBlockMechanic mechanic = NexoBlocks.customBlockMechanic(location);
+      if (mechanic == null) return;
+      itemId = mechanic.getItemID();
+      auraLocation = location;
+      pdc = new CustomBlockData(location.getBlock(), NexoAddon.getInstance());
+    }
+
+    Mechanics mechanics = NexoAddon.getInstance().getMechanics().get(itemId);
+    if (mechanics == null || mechanics.getBlockAura() == null) return;
+    if (NexoAddon.getInstance().getParticleTasks().containsKey(auraLocation)) return;
+
+    BlockAura aura = mechanics.getBlockAura();
+    startBlockAura(aura.particle(), auraLocation, aura.xOffset(), aura.yOffset(), aura.zOffset(), aura.amount(), aura.deltaX(), aura.deltaY(), aura.deltaZ(), aura.speed(), aura.force(), aura.data());
+    pdc.set(new NamespacedKey(NexoAddon.getInstance(), "blockAura"), PersistentDataType.STRING, itemId);
+  }
+
   public static void restartBlockAura(Chunk chunk){
+    markPopulatedAuras(chunk);
+
     for(Block block : CustomBlockData.getBlocksWithCustomData(NexoAddon.getInstance(), chunk)){
       CustomBlockData customBlockData = new CustomBlockData(block, (NexoAddon.getInstance()));
       if(!customBlockData.has(new NamespacedKey(NexoAddon.getInstance(), "blockAura"), PersistentDataType.STRING)) continue;

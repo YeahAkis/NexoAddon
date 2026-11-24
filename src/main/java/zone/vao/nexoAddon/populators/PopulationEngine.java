@@ -3,9 +3,12 @@ package zone.vao.nexoAddon.populators;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 import org.bukkit.generator.WorldInfo;
+import org.bukkit.util.BlockVector;
+import zone.vao.nexoAddon.utils.BlockUtil;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -23,6 +26,7 @@ public class PopulationEngine {
     Set<Position> placed = new HashSet<>();
     if (rule.iterations().scansChunk()) {
       scan(random, chunkX, chunkZ, bottom, top, region, rule, placed);
+      queueAuras(world, region, rule, placed);
       return;
     }
 
@@ -36,6 +40,13 @@ public class PopulationEngine {
       int size = Math.min(rule.veinSize().sample(random), amount - placed.size() + 1);
       if (size > 1) vein(position, size, random, chunkX, chunkZ, bottom, top, region, rule, placed);
     }
+    queueAuras(world, region, rule, placed);
+  }
+
+  private void queueAuras(WorldInfo world, PopulationRegion region, PopulatorDefinition rule, Set<Position> placed) {
+    if (placed.isEmpty() || region instanceof WorldPopulationRegion || !BlockUtil.hasBlockAura(rule.item().id())) return;
+    List<BlockVector> positions = placed.stream().map(position -> new BlockVector(position.x(), position.y(), position.z())).toList();
+    BlockUtil.queuePopulatedAuras(world.getUID(), rule.item().id(), positions);
   }
 
   private void scan(Random random, int chunkX, int chunkZ, int bottom, int top, PopulationRegion region,

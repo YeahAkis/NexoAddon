@@ -10,7 +10,9 @@ import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Entity;
 import org.bukkit.persistence.PersistentDataType;
+import zone.vao.nexoAddon.utils.BlockUtil;
 
 public record WorldPopulationRegion(World world, int chunkX, int chunkZ) implements PopulationRegion {
 
@@ -43,13 +45,16 @@ public record WorldPopulationRegion(World world, int chunkX, int chunkZ) impleme
       Block block = world.getBlockAt(x, y, z);
       BlockData original = block.getBlockData();
       boolean placed = false;
+      Entity furniture = null;
       try {
         if (!original.getMaterial().isAir()) block.setType(Material.AIR, false);
-        placed = item.furniture().place(location, yaw(facing), facing) != null;
+        furniture = item.furniture().place(location, yaw(facing), facing);
+        placed = furniture != null;
       } finally {
         if (!placed) block.setBlockData(original, false);
       }
       if (!placed) return false;
+      BlockUtil.startPopulatedAura(location, furniture);
     } else if (item.saplingTime() != null) {
       NexoBlocks.place(item.id(), location);
       CustomBlockMechanic block = NexoBlocks.customBlockMechanic(location.getBlock());
@@ -59,9 +64,11 @@ public record WorldPopulationRegion(World world, int chunkX, int chunkZ) impleme
         CustomBlockData data = new CustomBlockData(location.getBlock(), NexoPlugin.instance());
         data.set(new NamespacedKey(NexoPlugin.instance(), "sapling"), PersistentDataType.INTEGER, sapling.sapling().getNaturalGrowthTime());
       }
+      BlockUtil.startPopulatedAura(location, null);
     } else {
       world.getBlockAt(x, y, z).setBlockData(item.blockData(facing), false);
       if (item.upperData() != null) world.getBlockAt(x, y + 1, z).setBlockData(item.upperData().clone(), false);
+      BlockUtil.startPopulatedAura(location, null);
     }
     return true;
   }
